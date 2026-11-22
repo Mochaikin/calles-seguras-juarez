@@ -1,10 +1,10 @@
 from datetime import datetime, timezone
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
-from backend.app.models.models import Reporte, Colonia, HistorialEstado
+from backend.app.models.models import Reporte, Colonia, HistorialEstado, Confirmacion
 from backend.app.schemas.schemas import ReporteCreate, ReporteResponse
 
 router = APIRouter(prefix="/reportes", tags=["Reportes"])
@@ -104,3 +104,72 @@ def crear_reporte(payload: ReporteCreate, db: Session = Depends(get_db)):
     db.commit()
 
     return nuevo_reporte
+
+
+@router.patch("/{reporte_id}/estado", response_model=ReporteResponse)
+def actualizar_estado_reporte(
+    reporte_id: int,
+    nuevo_estado: str = Body(..., embed=True, min_length=2, max_length=50),
+    comentario: Optional[str] = Body(default=None, embed=True, max_length=300),
+    db: Session = Depends(get_db),
+):
+    reporte = db.query(Reporte).filter(Reporte.id == reporte_id).first()
+    if not reporte:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reporte no encontrado",
+        )
+
+    estado_anterior = reporte.estado
+    reporte.estado = nuevo_estado
+    db.commit()
+    db.refresh(reporte)
+
+    ahora = datetime.now(timezone.utc).replace(tzinfo=None)
+    historial = HistorialEstado(
+        reporte_id=reporte.id,
+        user_id=None,
+        estado_anterior=estado_anterior,
+        estado_nuevo=nuevo_estado,
+        comentario=comentario or "Actualización de estado vía API",
+        created_at=ahora,
+    )
+    db.add(historial)
+    db.commit()
+
+    return reporte
+
+
+@router.post("/{reporte_id}/confirmar", status_code=status.HTTP_201_CREATED)
+def confirmar_reporte(
+    reporte_id: int,
+    comentario: Optional[str] = Body(default=None, embed=True, max_length=300),
+    db: Session = Depends(get_db),
+):
+    reporte = db.query(Reporte).filter(Reporte.id == reporte_id).first()
+    if not reporte:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reporte no encontrado",
+        )
+
+    ahora = datetime.now(timezone.utc).replace(tzinfo=None)
+    confirmacion = Confirmacion(
+        reporte_id=reporte.id,
+        user_id=None,
+        comentario=comentario or "Confirmación ciudadana registrada vía API",
+        created_at=ahora,
+    )
+    db.add(confirmacion)
+    db.commit()
+    db.refresh(confirmacion)
+
+    total_confirmaciones = db.query(Confirmacion).filter(Confirmacion.reporte_id == reporte.id).count()
+
+    return {
+        "mensaje": "Confirmación registrada con éxito",
+        "reporte_id": reporte.id,
+        "folio": reporte.folio,
+        "confirmacion_id": confirmacion.id,
+        "total_confirmaciones": total_confirmaciones,
+    }
