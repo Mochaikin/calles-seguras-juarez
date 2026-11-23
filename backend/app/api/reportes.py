@@ -157,7 +157,7 @@ def confirmar_reporte(
     confirmacion = Confirmacion(
         reporte_id=reporte.id,
         user_id=None,
-        comentario=comentario or "Confirmación ciudadana registrada vía API",
+        tipo_respuesta="confirmar",
         created_at=ahora,
     )
     db.add(confirmacion)
