@@ -3,6 +3,124 @@ const API_BASE =
     ? "http://127.0.0.1:8000"
     : "https://calles-seguras-juarez-api-8e6q.onrender.com";
 
+let coloniasMap = {};
+
+document.addEventListener("DOMContentLoaded", async () => {
+  inicializarModal();
+  inicializarFiltros();
+  await verificarConexion();
+  await cargarColonias();
+  await cargarReportes();
+});
+
+async function verificarConexion() {
+  const statusEl = document.getElementById("apiStatus");
+  if (!statusEl) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/health`);
+    if (!res.ok) throw new Error("API no disponible");
+    statusEl.textContent = "API Conectada";
+    statusEl.classList.remove("status-offline", "status-loading");
+    statusEl.classList.add("status-online");
+  } catch (err) {
+    statusEl.textContent = "API Desconectada";
+    statusEl.classList.remove("status-online", "status-loading");
+    statusEl.classList.add("status-offline");
+  }
+}
+
+async function cargarColonias() {
+  try {
+    const res = await fetch(`${API_BASE}/colonias/`);
+    if (!res.ok) return;
+    const colonias = await res.json();
+
+    coloniasMap = {};
+    const filtroColonia = document.getElementById("filtroColonia");
+    const modalColonia = document.getElementById("colonia_id");
+
+    colonias.forEach((c) => {
+      coloniasMap[c.id] = c.nombre;
+      if (filtroColonia) {
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        opt.textContent = c.nombre;
+        filtroColonia.appendChild(opt);
+      }
+      if (modalColonia) {
+        const opt2 = document.createElement("option");
+        opt2.value = c.id;
+        opt2.textContent = c.nombre;
+        modalColonia.appendChild(opt2);
+      }
+    });
+
+    const statColonias = document.getElementById("statColonias");
+    if (statColonias) statColonias.textContent = colonias.length;
+  } catch (err) {
+    console.error("Error al cargar colonias:", err);
+  }
+}
+
+async function cargarReportes() {
+  const listaEl = document.getElementById("listaReportes");
+  const countLabel = document.getElementById("resultadosCount");
+
+  const buscar = document.getElementById("filtroBuscar")?.value.trim() || "";
+  const coloniaId = document.getElementById("filtroColonia")?.value || "";
+  const tipo = document.getElementById("filtroTipo")?.value || "";
+  const estado = document.getElementById("filtroEstado")?.value || "";
+
+  const params = new URLSearchParams();
+  if (buscar) params.append("buscar", buscar);
+  if (coloniaId) params.append("colonia_id", coloniaId);
+  if (tipo) params.append("tipo", tipo);
+  if (estado) params.append("estado", estado);
+
+  try {
+    const queryString = params.toString();
+    const url = `${API_BASE}/reportes/${queryString ? `?${queryString}` : ""}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Error al consultar reportes");
+
+    const reportes = await res.json();
+    actualizarEstadisticas(reportes);
+    renderizarReportes(reportes);
+    if (countLabel) {
+      countLabel.textContent = `Mostrando ${reportes.length} reporte(s)`;
+    }
+  } catch (err) {
+    console.error("Error al cargar reportes:", err);
+    if (listaEl) {
+      listaEl.innerHTML =
+        '<div class="empty-state">No se pudieron cargar los reportes desde la API.</div>';
+    }
+    if (countLabel) countLabel.textContent = "Error de conexión";
+  }
+}
+
+function actualizarEstadisticas(reportes) {
+  const total = reportes.length;
+  const encharcamientos = reportes.filter((r) => r.tipo === "encharcamiento").length;
+  const pavimento = total - encharcamientos;
+
+  const statTotal = document.getElementById("statTotal");
+  const statPavimento = document.getElementById("statPavimento");
+  const statEncharcamientos = document.getElementById("statEncharcamientos");
+
+  if (statTotal) statTotal.textContent = total;
+  if (statPavimento) statPavimento.textContent = pavimento;
+  if (statEncharcamientos) statEncharcamientos.textContent = encharcamientos;
+}
+
+function formatearEtiqueta(valor) {
+  if (!valor) return "";
+  return valor
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (l) => l.toUpperCase());
+}
+
 function renderizarReportes(reportes) {
   const listaEl = document.getElementById("listaReportes");
 
@@ -95,5 +213,105 @@ async function cambiarEstadoReporte(reporteId, nuevoEstado) {
   } catch (err) {
     alert(`Error: ${err.message}`);
     await cargarReportes();
+  }
+}
+
+async function confirmarReporte(reporteId, btnEl) {
+  try {
+    if (btnEl) btnEl.disabled = true;
+    const res = await fetch(`${API_BASE}/reportes/${reporteId}/confirmar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        comentario: "Confirmado desde la plataforma ciudadana",
+      }),
+    });
+
+    if (!res.ok) throw new Error("No se pudo registrar la confirmación");
+    const data = await res.json();
+    if (btnEl) {
+      btnEl.textContent = `👍 Confirmado (${data.total_confirmaciones})`;
+    }
+  } catch (err) {
+    alert(`Error: ${err.message}`);
+    if (btnEl) btnEl.disabled = false;
+  }
+}
+
+function inicializarFiltros() {
+  const btnAplicar = document.getElementById("btnAplicarFiltros");
+  const btnLimpiar = document.getElementById("btnLimpiarFiltros");
+
+  if (btnAplicar) {
+    btnAplicar.addEventListener("click", cargarReportes);
+  }
+
+  if (btnLimpiar) {
+    btnLimpiar.addEventListener("click", () => {
+      const buscar = document.getElementById("filtroBuscar");
+      const colonia = document.getElementById("filtroColonia");
+      const tipo = document.getElementById("filtroTipo");
+      const estado = document.getElementById("filtroEstado");
+
+      if (buscar) buscar.value = "";
+      if (colonia) colonia.value = "";
+      if (tipo) tipo.value = "";
+      if (estado) estado.value = "";
+      cargarReportes();
+    });
+  }
+}
+
+function inicializarModal() {
+  const modal = document.getElementById("modalReporte");
+  const btnAbrir = document.getElementById("btnAbrirModal");
+  const btnCerrar = document.getElementById("btnCerrarModal");
+  const btnCancelar = document.getElementById("btnCancelarModal");
+  const form = document.getElementById("formNuevoReporte");
+
+  if (btnAbrir && modal) {
+    btnAbrir.addEventListener("click", () => modal.classList.remove("hidden"));
+  }
+
+  const cerrar = () => {
+    if (modal) modal.classList.add("hidden");
+  };
+
+  if (btnCerrar) btnCerrar.addEventListener("click", cerrar);
+  if (btnCancelar) btnCancelar.addEventListener("click", cerrar);
+
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const coloniaVal = document.getElementById("colonia_id")?.value;
+      const payload = {
+        tipo: document.getElementById("tipo").value,
+        calle: document.getElementById("calle").value.trim(),
+        colonia_id: coloniaVal ? Number(coloniaVal) : null,
+        severidad_o_nivel: document.getElementById("severidad_o_nivel").value,
+        latitud: Number(document.getElementById("latitud").value),
+        longitud: Number(document.getElementById("longitud").value),
+        descripcion: document.getElementById("descripcion").value.trim() || null,
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/reportes/`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || "No se pudo guardar el reporte");
+        }
+
+        form.reset();
+        cerrar();
+        await cargarReportes();
+      } catch (err) {
+        alert(`Error: ${err.message}`);
+      }
+    });
   }
 }
