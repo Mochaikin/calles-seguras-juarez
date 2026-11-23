@@ -1,7 +1,7 @@
 const API_BASE =
   window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost"
     ? "http://127.0.0.1:8000"
-    : "https://TU-URL-DE-API-PUBLICA.com";
+    : "https://calles-seguras-juarez-api-8e6q.onrender.com";
 
 let coloniasMap = {};
 
