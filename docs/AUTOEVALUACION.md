@@ -1,3 +1,6 @@
+### 6. `docs/AUTOEVALUACION.md` (completo de principio a fin)
+
+```markdown
 # Autoevaluación del Proyecto — Calles Seguras Juárez
 
 ## 1. Resumen Ejecutivo
@@ -26,3 +29,4 @@
 - Verificar conexión y CORS entre el frontend en GitHub Pages y la API en Render.
 - Integrar vista de mapa interactivo con coordenadas georreferenciadas de Ciudad Juárez.
 - Ampliar la suite de pruebas con `pytest` (filtros combinados, casos `404` y reglas de severidad/estado inicial).
+

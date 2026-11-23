@@ -3,8 +3,8 @@
 Plataforma ciudadana para reportar y dar seguimiento a baches, daños en pavimento y encharcamientos en Ciudad Juárez.
 
 ## URL Pública
-- **Sitio web:** https://mochaikin.github.io/calles-seguras-juarez/frontend/[cite: 3]
-- **API / Documentación:** https://calles-seguras-juarez-api-8e6q.onrender.com[cite: 5]
+- **Sitio web:** https://mochaikin.github.io/calles-seguras-juarez/frontend/
+- **API / Documentación:** https://calles-seguras-juarez-api-8e6q.onrender.com
 
 ## Stack Tecnológico
 - **Backend:** FastAPI, SQLAlchemy, Pydantic, Python 3.13

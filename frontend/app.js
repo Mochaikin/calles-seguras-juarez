@@ -122,7 +122,21 @@ function formatearEtiqueta(valor) {
 }
 
 function renderizarReportes(reportes) {
-  const listaEl = document.getElementById("listaReportes");
+  let listaEl = document.getElementById("listaReportes");
+
+  if (!listaEl) {
+    const cargandoEl = Array.from(document.querySelectorAll("*")).find(
+      (el) => el.children.length === 0 && el.textContent.trim() === "Cargando registros..."
+    );
+    if (cargandoEl && cargandoEl.parentElement) {
+      listaEl = cargandoEl.parentElement;
+    }
+  }
+
+  if (!listaEl) {
+    console.warn("No se encontró contenedor para renderizar reportes");
+    return;
+  }
 
   if (!reportes || reportes.length === 0) {
     listaEl.innerHTML =
@@ -184,7 +198,7 @@ function renderizarReportes(reportes) {
               ${opcionesHtml}
             </select>
             <button class="btn-confirm" onclick="confirmarReporte(${r.id}, this)">
-              👍 Confirmar reporte
+             Confirmar reporte
             </button>
           </div>
         </article>
@@ -230,7 +244,7 @@ async function confirmarReporte(reporteId, btnEl) {
     if (!res.ok) throw new Error("No se pudo registrar la confirmación");
     const data = await res.json();
     if (btnEl) {
-      btnEl.textContent = `👍 Confirmado (${data.total_confirmaciones})`;
+      btnEl.textContent = ` Confirmado (${data.total_confirmaciones})`;
     }
   } catch (err) {
     alert(`Error: ${err.message}`);
