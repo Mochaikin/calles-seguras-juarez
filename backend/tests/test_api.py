@@ -80,3 +80,30 @@ def test_crear_y_confirmar_reporte():
     )
     assert res_confirmar.status_code == 201
     assert res_confirmar.json()["total_confirmaciones"] == 1
+
+
+def test_actualizar_estado_valido_e_invalido():
+    payload = {
+        "tipo": "bache",
+        "latitud": 31.7400,
+        "longitud": -106.4800,
+        "calle": "Av. Tecnológico #3500",
+        "colonia_id": 1,
+        "severidad_o_nivel": "Media",
+        "descripcion": "Prueba de transición de estado",
+    }
+    creado = client.post("/reportes/", json=payload).json()
+    reporte_id = creado["id"]
+
+    res_ok = client.patch(
+        f"/reportes/{reporte_id}/estado",
+        json={"nuevo_estado": "en_reparacion", "comentario": "Cuadrilla asignada"},
+    )
+    assert res_ok.status_code == 200
+    assert res_ok.json()["estado"] == "en_reparacion"
+
+    res_bad = client.patch(
+        f"/reportes/{reporte_id}/estado",
+        json={"nuevo_estado": "estado_inventado"},
+    )
+    assert res_bad.status_code == 400

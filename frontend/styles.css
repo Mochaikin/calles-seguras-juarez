@@ -427,3 +427,26 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   z-index: 60;
 }
+
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.estado-select {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background-color: #f8fafc;
+  color: #1e293b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.estado-select:hover {
+  border-color: #2563eb;
+}

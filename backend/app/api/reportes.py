@@ -9,6 +9,16 @@ from backend.app.schemas.schemas import ReporteCreate, ReporteResponse
 
 router = APIRouter(prefix="/reportes", tags=["Reportes"])
 
+ESTADOS_VALIDOS = {
+    "recibido",
+    "validado",
+    "programado",
+    "en_reparacion",
+    "reparado",
+    "activo",
+    "historico",
+}
+
 
 def _generar_folio(db: Session, tipo: str) -> str:
     anio = datetime.now(timezone.utc).year
@@ -69,7 +79,6 @@ def crear_reporte(payload: ReporteCreate, db: Session = Depends(get_db)):
                 detail="La colonia indicada no existe",
             )
 
-    # Regla de negocio: encharcamientos inician activos; daños en pavimento inician recibidos
     estado_inicial = "activo" if payload.tipo == "encharcamiento" else "recibido"
     severidad_final = "Alta" if payload.tipo == "alcantarilla_sin_tapa" else payload.severidad_o_nivel
     folio = _generar_folio(db, payload.tipo)
@@ -113,6 +122,13 @@ def actualizar_estado_reporte(
     comentario: Optional[str] = Body(default=None, embed=True, max_length=300),
     db: Session = Depends(get_db),
 ):
+    estado_normalizado = nuevo_estado.strip().lower()
+    if estado_normalizado not in ESTADOS_VALIDOS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Estado inválido '{nuevo_estado}'. Permitidos: {sorted(ESTADOS_VALIDOS)}",
+        )
+
     reporte = db.query(Reporte).filter(Reporte.id == reporte_id).first()
     if not reporte:
         raise HTTPException(
@@ -121,7 +137,7 @@ def actualizar_estado_reporte(
         )
 
     estado_anterior = reporte.estado
-    reporte.estado = nuevo_estado
+    reporte.estado = estado_normalizado
     db.commit()
     db.refresh(reporte)
 
@@ -130,7 +146,7 @@ def actualizar_estado_reporte(
         reporte_id=reporte.id,
         user_id=None,
         estado_anterior=estado_anterior,
-        estado_nuevo=nuevo_estado,
+        estado_nuevo=estado_normalizado,
         comentario=comentario or "Actualización de estado vía API",
         created_at=ahora,
     )
