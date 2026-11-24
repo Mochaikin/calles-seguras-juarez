@@ -11,43 +11,54 @@ document.addEventListener("DOMContentLoaded", async () => {
   await verificarConexion();
   await cargarColonias();
   await cargarReportes();
+  await verificarConexion();
 });
 
-function buscarInsigniaApi() {
-  const porId =
-    document.getElementById("apiStatus") ||
-    document.getElementById("estadoApi") ||
-    document.getElementById("api-status");
-  if (porId) return porId;
+function buscarInsigniasApi() {
+  const encontrados = new Set();
 
-  return Array.from(document.querySelectorAll("span, div, button, p")).find(
-    (el) =>
-      el.children.length === 0 &&
-      (el.textContent.includes("Conectando API") ||
-        el.textContent.includes("API Conectada") ||
-        el.textContent.includes("API Desconectada"))
-  );
+  const idsConocidos = ["apiStatus", "estadoApi", "api-status", "badgeApi", "statusApi"];
+  idsConocidos.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) encontrados.add(el);
+  });
+
+  Array.from(document.querySelectorAll("span, div, button, p, a, strong")).forEach((el) => {
+    if (el.children.length === 0) {
+      const txt = el.textContent.trim();
+      if (
+        txt.includes("Conectando API") ||
+        txt.includes("Conectando...") ||
+        txt.includes("API Conectada") ||
+        txt.includes("API Desconectada")
+      ) {
+        encontrados.add(el);
+      }
+    }
+  });
+
+  return Array.from(encontrados);
 }
 
 async function verificarConexion() {
-  const statusEl = buscarInsigniaApi();
+  const badges = buscarInsigniasApi();
 
   try {
     const res = await fetch(`${API_BASE}/health`);
     if (!res.ok) throw new Error("API no disponible");
-    if (statusEl) {
-      statusEl.textContent = "API Conectada";
-      statusEl.style.backgroundColor = "#dcfce7";
-      statusEl.style.color = "#166534";
-      statusEl.style.borderColor = "#86efac";
-    }
+    badges.forEach((el) => {
+      el.textContent = "API Conectada";
+      el.style.backgroundColor = "#dcfce7";
+      el.style.color = "#166534";
+      el.style.borderColor = "#86efac";
+    });
   } catch (err) {
-    if (statusEl) {
-      statusEl.textContent = "API Desconectada";
-      statusEl.style.backgroundColor = "#fee2e2";
-      statusEl.style.color = "#991b1b";
-      statusEl.style.borderColor = "#fca5a5";
-    }
+    badges.forEach((el) => {
+      el.textContent = "API Desconectada";
+      el.style.backgroundColor = "#fee2e2";
+      el.style.color = "#991b1b";
+      el.style.borderColor = "#fca5a5";
+    });
   }
 }
 
@@ -220,7 +231,7 @@ function renderizarReportes(reportes) {
               ${opcionesHtml}
             </select>
             <button class="btn-confirm" onclick="confirmarReporte(${r.id}, this)">
-               Confirmar reporte
+              👍 Confirmar reporte
             </button>
           </div>
         </article>
@@ -266,7 +277,7 @@ async function confirmarReporte(reporteId, btnEl) {
     if (!res.ok) throw new Error("No se pudo registrar la confirmación");
     const data = await res.json();
     if (btnEl) {
-      btnEl.textContent = ` Confirmado (${data.total_confirmaciones})`;
+      btnEl.textContent = `👍 Confirmado (${data.total_confirmaciones})`;
     }
   } catch (err) {
     alert(`Error: ${err.message}`);
