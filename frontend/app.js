@@ -5,60 +5,43 @@ const API_BASE =
 
 let coloniasMap = {};
 
-document.addEventListener("DOMContentLoaded", () => {
-  iniciarApp();
-});
-
-if (document.readyState === "interactive" || document.readyState === "complete") {
-  iniciarApp();
-}
-
-let appIniciada = false;
-async function iniciarApp() {
-  if (appIniciada) return;
-  appIniciada = true;
-
+document.addEventListener("DOMContentLoaded", async () => {
   inicializarModal();
   inicializarFiltros();
   await verificarConexion();
   await cargarColonias();
   await cargarReportes();
-}
+});
 
-function obtenerElementoApi() {
-  return (
-    document.getElementById("apiStatus") ||
-    document.getElementById("estado-api") ||
-    document.getElementById("estadoApi") ||
-    document.getElementById("api-status") ||
-    Array.from(document.querySelectorAll("span, div, button, p")).find(
-      (el) =>
-        el.children.length === 0 &&
-        /conectando|api conectada|api desconectada/i.test(el.textContent.trim())
-    )
-  );
+function mostrarToast(mensaje) {
+  const toastEl = document.getElementById("toast");
+  if (!toastEl) return;
+  toastEl.textContent = mensaje;
+  toastEl.classList.remove("hidden");
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(() => {
+    toastEl.classList.add("hidden");
+  }, 3000);
 }
 
 async function verificarConexion() {
-  const statusEl = obtenerElementoApi();
+  const statusEl = document.getElementById("api-status");
+  if (!statusEl) return;
+
   try {
     const res = await fetch(`${API_BASE}/health`);
     if (!res.ok) throw new Error("API no disponible");
-    if (statusEl) {
-      statusEl.textContent = "API Conectada";
-      statusEl.classList.remove("status-offline", "status-loading", "conectando");
-      statusEl.classList.add("status-online", "conectada");
-      statusEl.style.backgroundColor = "#dcfce7";
-      statusEl.style.color = "#166534";
-    }
+    statusEl.textContent = "API Conectada";
+    statusEl.classList.remove("status-loading", "status-offline", "status-error");
+    statusEl.classList.add("status-online", "status-connected");
+    statusEl.style.setProperty("background-color", "#16a34a", "important");
+    statusEl.style.setProperty("color", "#ffffff", "important");
   } catch (err) {
-    if (statusEl) {
-      statusEl.textContent = "API Desconectada";
-      statusEl.classList.remove("status-online", "status-loading", "conectada");
-      statusEl.classList.add("status-offline");
-      statusEl.style.backgroundColor = "#fee2e2";
-      statusEl.style.color = "#991b1b";
-    }
+    statusEl.textContent = "API Desconectada";
+    statusEl.classList.remove("status-loading", "status-online", "status-connected");
+    statusEl.classList.add("status-offline", "status-error");
+    statusEl.style.setProperty("background-color", "#dc2626", "important");
+    statusEl.style.setProperty("color", "#ffffff", "important");
   }
 }
 
@@ -69,19 +52,26 @@ async function cargarColonias() {
     const colonias = await res.json();
 
     coloniasMap = {};
-    const filtroColonia =
-      document.getElementById("filtroColonia") || document.getElementById("filtro-colonia");
-    const modalColonia =
-      document.getElementById("colonia_id") || document.getElementById("coloniaId");
+    const filtroColonia = document.getElementById("filtro-colonia");
+    const modalColonia = document.getElementById("rep-colonia");
+
+    if (filtroColonia) {
+      filtroColonia.innerHTML = '<option value="">Todas las colonias</option>';
+    }
+    if (modalColonia) {
+      modalColonia.innerHTML = '<option value="">Selecciona una colonia...</option>';
+    }
 
     colonias.forEach((c) => {
       coloniasMap[c.id] = c.nombre;
+
       if (filtroColonia) {
         const opt = document.createElement("option");
         opt.value = c.id;
         opt.textContent = c.nombre;
         filtroColonia.appendChild(opt);
       }
+
       if (modalColonia) {
         const opt2 = document.createElement("option");
         opt2.value = c.id;
@@ -90,8 +80,7 @@ async function cargarColonias() {
       }
     });
 
-    const statColonias =
-      document.getElementById("statColonias") || document.getElementById("totalColonias");
+    const statColonias = document.getElementById("stat-colonias");
     if (statColonias) statColonias.textContent = colonias.length;
   } catch (err) {
     console.error("Error al cargar colonias:", err);
@@ -99,21 +88,13 @@ async function cargarColonias() {
 }
 
 async function cargarReportes() {
-  const listaEl =
-    document.getElementById("listaReportes") ||
-    document.getElementById("reportesLista") ||
-    document.getElementById("contenedorReportes");
-  const countLabel = document.getElementById("resultadosCount");
+  const listaEl = document.getElementById("reportes-grid");
+  const countLabel = document.getElementById("resultados-texto");
 
-  const buscar =
-    (document.getElementById("filtroBuscar") || document.getElementById("filtro-buscar"))?.value.trim() ||
-    "";
-  const coloniaId =
-    (document.getElementById("filtroColonia") || document.getElementById("filtro-colonia"))?.value || "";
-  const tipo =
-    (document.getElementById("filtroTipo") || document.getElementById("filtro-tipo"))?.value || "";
-  const estado =
-    (document.getElementById("filtroEstado") || document.getElementById("filtro-estado"))?.value || "";
+  const buscar = document.getElementById("filtro-buscar")?.value.trim() || "";
+  const coloniaId = document.getElementById("filtro-colonia")?.value || "";
+  const tipo = document.getElementById("filtro-tipo")?.value || "";
+  const estado = document.getElementById("filtro-estado")?.value || "";
 
   const params = new URLSearchParams();
   if (buscar) params.append("buscar", buscar);
@@ -129,7 +110,7 @@ async function cargarReportes() {
 
     const reportes = await res.json();
     actualizarEstadisticas(reportes);
-    renderizarReportes(reportes, listaEl);
+    renderizarReportes(reportes);
     if (countLabel) {
       countLabel.textContent = `Mostrando ${reportes.length} reporte(s)`;
     }
@@ -146,18 +127,14 @@ async function cargarReportes() {
 function actualizarEstadisticas(reportes) {
   const total = reportes.length;
   const encharcamientos = reportes.filter((r) => r.tipo === "encharcamiento").length;
-  const pavimento = total - encharcamientos;
+  const baches = total - encharcamientos;
 
-  const statTotal =
-    document.getElementById("statTotal") || document.getElementById("totalReportes");
-  const statPavimento =
-    document.getElementById("statPavimento") || document.getElementById("totalPavimento");
-  const statEncharcamientos =
-    document.getElementById("statEncharcamientos") ||
-    document.getElementById("totalEncharcamientos");
+  const statTotal = document.getElementById("stat-total");
+  const statBaches = document.getElementById("stat-baches");
+  const statEncharcamientos = document.getElementById("stat-encharcamientos");
 
   if (statTotal) statTotal.textContent = total;
-  if (statPavimento) statPavimento.textContent = pavimento;
+  if (statBaches) statBaches.textContent = baches;
   if (statEncharcamientos) statEncharcamientos.textContent = encharcamientos;
 }
 
@@ -168,22 +145,8 @@ function formatearEtiqueta(valor) {
     .replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
-function renderizarReportes(reportes, listaElParam) {
-  let listaEl =
-    listaElParam ||
-    document.getElementById("listaReportes") ||
-    document.getElementById("reportesLista") ||
-    document.getElementById("contenedorReportes");
-
-  if (!listaEl) {
-    const cargandoEl = Array.from(document.querySelectorAll("*")).find(
-      (el) => el.children.length === 0 && el.textContent.trim() === "Cargando registros..."
-    );
-    if (cargandoEl && cargandoEl.parentElement) {
-      listaEl = cargandoEl.parentElement;
-    }
-  }
-
+function renderizarReportes(reportes) {
+  const listaEl = document.getElementById("reportes-grid");
   if (!listaEl) return;
 
   if (!reportes || reportes.length === 0) {
@@ -271,6 +234,7 @@ async function cambiarEstadoReporte(reporteId, nuevoEstado) {
       throw new Error(errData.detail || "No se pudo actualizar el estado");
     }
 
+    mostrarToast(`Estado actualizado a ${formatearEtiqueta(nuevoEstado)}`);
     await cargarReportes();
   } catch (err) {
     alert(`Error: ${err.message}`);
@@ -294,6 +258,7 @@ async function confirmarReporte(reporteId, btnEl) {
     if (btnEl) {
       btnEl.textContent = `👍 Confirmado (${data.total_confirmaciones})`;
     }
+    mostrarToast("Confirmación registrada");
   } catch (err) {
     alert(`Error: ${err.message}`);
     if (btnEl) btnEl.disabled = false;
@@ -301,8 +266,8 @@ async function confirmarReporte(reporteId, btnEl) {
 }
 
 function inicializarFiltros() {
-  const btnAplicar = document.getElementById("btnAplicarFiltros");
-  const btnLimpiar = document.getElementById("btnLimpiarFiltros");
+  const btnAplicar = document.getElementById("btn-filtrar");
+  const btnLimpiar = document.getElementById("btn-limpiar");
 
   if (btnAplicar) {
     btnAplicar.addEventListener("click", cargarReportes);
@@ -310,13 +275,10 @@ function inicializarFiltros() {
 
   if (btnLimpiar) {
     btnLimpiar.addEventListener("click", () => {
-      const buscar =
-        document.getElementById("filtroBuscar") || document.getElementById("filtro-buscar");
-      const colonia =
-        document.getElementById("filtroColonia") || document.getElementById("filtro-colonia");
-      const tipo = document.getElementById("filtroTipo") || document.getElementById("filtro-tipo");
-      const estado =
-        document.getElementById("filtroEstado") || document.getElementById("filtro-estado");
+      const buscar = document.getElementById("filtro-buscar");
+      const colonia = document.getElementById("filtro-colonia");
+      const tipo = document.getElementById("filtro-tipo");
+      const estado = document.getElementById("filtro-estado");
 
       if (buscar) buscar.value = "";
       if (colonia) colonia.value = "";
@@ -328,11 +290,11 @@ function inicializarFiltros() {
 }
 
 function inicializarModal() {
-  const modal = document.getElementById("modalReporte");
-  const btnAbrir = document.getElementById("btnAbrirModal");
-  const btnCerrar = document.getElementById("btnCerrarModal");
-  const btnCancelar = document.getElementById("btnCancelarModal");
-  const form = document.getElementById("formNuevoReporte");
+  const modal = document.getElementById("modal-reporte");
+  const btnAbrir = document.getElementById("btn-abrir-modal");
+  const btnCerrar = document.getElementById("btn-cerrar-modal");
+  const btnCancelar = document.getElementById("btn-cancelar-modal");
+  const form = document.getElementById("form-nuevo-reporte");
 
   if (btnAbrir && modal) {
     btnAbrir.addEventListener("click", () => modal.classList.remove("hidden"));
@@ -348,17 +310,15 @@ function inicializarModal() {
   if (form) {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const coloniaVal = (
-        document.getElementById("colonia_id") || document.getElementById("coloniaId")
-      )?.value;
+      const coloniaVal = document.getElementById("rep-colonia")?.value;
       const payload = {
-        tipo: document.getElementById("tipo").value,
-        calle: document.getElementById("calle").value.trim(),
+        tipo: document.getElementById("rep-tipo").value,
+        calle: document.getElementById("rep-calle").value.trim(),
         colonia_id: coloniaVal ? Number(coloniaVal) : null,
-        severidad_o_nivel: document.getElementById("severidad_o_nivel").value,
-        latitud: Number(document.getElementById("latitud").value),
-        longitud: Number(document.getElementById("longitud").value),
-        descripcion: document.getElementById("descripcion").value.trim() || null,
+        severidad_o_nivel: document.getElementById("rep-severidad").value,
+        latitud: Number(document.getElementById("rep-lat").value),
+        longitud: Number(document.getElementById("rep-lon").value),
+        descripcion: document.getElementById("rep-descripcion").value.trim() || null,
       };
 
       try {
@@ -375,6 +335,7 @@ function inicializarModal() {
 
         form.reset();
         cerrar();
+        mostrarToast("Reporte registrado correctamente");
         await cargarReportes();
       } catch (err) {
         alert(`Error: ${err.message}`);
