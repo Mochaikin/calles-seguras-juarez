@@ -13,20 +13,41 @@ document.addEventListener("DOMContentLoaded", async () => {
   await cargarReportes();
 });
 
+function buscarInsigniaApi() {
+  const porId =
+    document.getElementById("apiStatus") ||
+    document.getElementById("estadoApi") ||
+    document.getElementById("api-status");
+  if (porId) return porId;
+
+  return Array.from(document.querySelectorAll("span, div, button, p")).find(
+    (el) =>
+      el.children.length === 0 &&
+      (el.textContent.includes("Conectando API") ||
+        el.textContent.includes("API Conectada") ||
+        el.textContent.includes("API Desconectada"))
+  );
+}
+
 async function verificarConexion() {
-  const statusEl = document.getElementById("apiStatus");
-  if (!statusEl) return;
+  const statusEl = buscarInsigniaApi();
 
   try {
     const res = await fetch(`${API_BASE}/health`);
     if (!res.ok) throw new Error("API no disponible");
-    statusEl.textContent = "API Conectada";
-    statusEl.classList.remove("status-offline", "status-loading");
-    statusEl.classList.add("status-online");
+    if (statusEl) {
+      statusEl.textContent = "API Conectada";
+      statusEl.style.backgroundColor = "#dcfce7";
+      statusEl.style.color = "#166534";
+      statusEl.style.borderColor = "#86efac";
+    }
   } catch (err) {
-    statusEl.textContent = "API Desconectada";
-    statusEl.classList.remove("status-online", "status-loading");
-    statusEl.classList.add("status-offline");
+    if (statusEl) {
+      statusEl.textContent = "API Desconectada";
+      statusEl.style.backgroundColor = "#fee2e2";
+      statusEl.style.color = "#991b1b";
+      statusEl.style.borderColor = "#fca5a5";
+    }
   }
 }
 
@@ -85,6 +106,7 @@ async function cargarReportes() {
     if (!res.ok) throw new Error("Error al consultar reportes");
 
     const reportes = await res.json();
+    await verificarConexion();
     actualizarEstadisticas(reportes);
     renderizarReportes(reportes);
     if (countLabel) {
@@ -198,7 +220,7 @@ function renderizarReportes(reportes) {
               ${opcionesHtml}
             </select>
             <button class="btn-confirm" onclick="confirmarReporte(${r.id}, this)">
-             Confirmar reporte
+               Confirmar reporte
             </button>
           </div>
         </article>
