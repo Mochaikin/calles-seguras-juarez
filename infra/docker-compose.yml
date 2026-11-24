@@ -1,32 +1,4 @@
-@"
-FROM python:3.13-slim
-
-WORKDIR /app
-
-COPY backend/requirements.txt /app/backend/requirements.txt
-RUN pip install --no-cache-dir -r /app/backend/requirements.txt
-
-COPY backend /app/backend
-
-ENV PYTHONPATH=/app
-EXPOSE 8000
-
-CMD ["sh", "-c", "python -m backend.app.seed && uvicorn backend.app.main:app --host 0.0.0.0 --port 8000"]
-"@ | Set-Content -Path "backend\Dockerfile" -Encoding UTF8
-
-@"
-FROM nginx:alpine
-
-COPY . /usr/share/nginx/html
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
-"@ | Set-Content -Path "frontend\Dockerfile" -Encoding UTF8
-
-New-Item -ItemType Directory -Force -Path "infra" | Out-Null
-
-@"
-services:
+﻿services:
   db:
     image: postgres:16-alpine
     environment:
@@ -60,4 +32,3 @@ services:
 
 volumes:
   postgres_data:
-"@ | Set-Content -Path "infra\docker-compose.yml" -Encoding UTF8
