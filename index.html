@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calles Seguras Juárez | Monitoreo Vial Ciudadano</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="container navbar-content">
+      <div class="brand">
+        <span class="brand-badge">CDJ</span>
+        <div>
+          <h1>Calles Seguras Juárez</h1>
+          <p>Plataforma Ciudadana de Baches y Encharcamientos</p>
+        </div>
+      </div>
+      <div class="navbar-actions">
+        <span id="api-status" class="status-pill status-loading">Conectando API...</span>
+        <button id="btn-exportar-csv" class="btn btn-secondary" title="Descargar reporte filtrado">Exportar CSV</button>
+        <button id="btn-abrir-modal" class="btn btn-primary">+ Nuevo Reporte</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Banner de Aviso de Lluvia (HU-08.1 - API Externa Open-Meteo Juárez) -->
+  <section id="banner-lluvia" class="rain-banner hidden" aria-live="polite">
+    <div class="container rain-banner-content">
+      <div class="rain-info">
+        <span class="rain-icon" aria-hidden="true">🌧️</span>
+        <div>
+          <strong id="rain-titulo">Pronóstico meteorológico en Ciudad Juárez</strong>
+          <p id="rain-detalle">Consultando probabilidad de precipitación en las próximas 12 horas...</p>
+        </div>
+      </div>
+      <button id="btn-filtrar-encharcamientos" class="btn btn-warning-sm">Ver encharcamientos activos</button>
+    </div>
+  </section>
+
+  <main class="container main-content">
+    <!-- Tarjetas de Resumen -->
+    <section class="stats-grid" aria-label="Indicadores generales">
+      <article class="stat-card">
+        <span class="stat-label">Reportes Visibles</span>
+        <strong id="stat-total" class="stat-value">0</strong>
+        <span class="stat-sub">En el filtro actual</span>
+      </article>
+      <article class="stat-card stat-warning">
+        <span class="stat-label">Daños en Pavimento</span>
+        <strong id="stat-baches" class="stat-value">0</strong>
+        <span class="stat-sub">Baches, grietas y alcantarillas</span>
+      </article>
+      <article class="stat-card stat-info">
+        <span class="stat-label">Encharcamientos</span>
+        <strong id="stat-encharcamientos" class="stat-value">0</strong>
+        <span class="stat-sub">Zonas con acumulación pluvial</span>
+      </article>
+      <article class="stat-card stat-success">
+        <span class="stat-label">Colonias Registradas</span>
+        <strong id="stat-colonias" class="stat-value">0</strong>
+        <span class="stat-sub">Incluye acceso controlado</span>
+      </article>
+    </section>
+
+    <!-- Barra de Filtros -->
+    <section class="filters-card" aria-label="Filtros de búsqueda">
+      <div class="filters-grid">
+        <div class="form-group">
+          <label for="filtro-buscar">Buscar por folio o calle</label>
+          <input type="text" id="filtro-buscar" placeholder="Ej. BCH-2026 o Av. Tecnológico" />
+        </div>
+        <div class="form-group">
+          <label for="filtro-colonia">Colonia / Zona</label>
+          <select id="filtro-colonia">
+            <option value="">Todas las colonias</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="filtro-tipo">Tipo de incidencia</label>
+          <select id="filtro-tipo">
+            <option value="">Todos los tipos</option>
+            <option value="bache">Bache</option>
+            <option value="hundimiento">Hundimiento</option>
+            <option value="grieta">Grieta</option>
+            <option value="alcantarilla_sin_tapa">Alcantarilla sin tapa</option>
+            <option value="encharcamiento">Encharcamiento</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="filtro-estado">Estado</label>
+          <select id="filtro-estado">
+            <option value="">Todos los estados</option>
+            <option value="recibido">Recibido</option>
+            <option value="validado">Validado</option>
+            <option value="programado">Programado</option>
+            <option value="en_reparacion">En reparación</option>
+            <option value="reparado">Reparado</option>
+            <option value="activo">Activo (Encharcamiento)</option>
+            <option value="historico">Histórico</option>
+          </select>
+        </div>
+      </div>
+      <div class="filters-footer">
+        <button id="btn-limpiar" class="btn btn-secondary">Limpiar filtros</button>
+        <button id="btn-filtrar" class="btn btn-primary">Aplicar filtros</button>
+      </div>
+    </section>
+
+    <!-- Listado de Reportes -->
+    <section class="reports-section" aria-label="Listado de reportes">
+      <div class="section-header">
+        <h2>Reportes Ciudadanos Recientes</h2>
+        <span id="resultados-texto" class="muted-text">Cargando registros...</span>
+      </div>
+      <div id="reportes-grid" class="reports-grid"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-content">
+      <p>Calles Seguras Juárez — Plataforma ciudadana de monitoreo vial en Ciudad Juárez, Chih.</p>
+      <p class="footer-note">Aviso de Privacidad: Ningún reporte público expone datos personales del ciudadano reportante (RN-04).</p>
+    </div>
+  </footer>
+
+  <!-- Modal para Crear Nuevo Reporte -->
+  <div id="modal-reporte" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-titulo">Registrar Nuevo Reporte</h3>
+        <button id="btn-cerrar-modal" class="btn-icon" aria-label="Cerrar">&times;</button>
+      </div>
+      <form id="form-nuevo-reporte" class="modal-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="rep-tipo">Tipo de incidencia *</label>
+            <select id="rep-tipo" required>
+              <option value="bache">Bache</option>
+              <option value="hundimiento">Hundimiento</option>
+              <option value="grieta">Grieta</option>
+              <option value="alcantarilla_sin_tapa">Alcantarilla sin tapa</option>
+              <option value="encharcamiento">Encharcamiento</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="rep-colonia">Colonia / Zona *</label>
+            <select id="rep-colonia" required>
+              <option value="">Selecciona una colonia...</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="rep-calle">Calle y referencia *</label>
+            <input type="text" id="rep-calle" placeholder="Ej. Av. Ejército Nacional #4520" required />
+          </div>
+          <div class="form-group">
+            <label for="rep-severidad" id="label-severidad">Severidad o nivel *</label>
+            <input type="text" id="rep-severidad" placeholder="Ej. Alta / Cubre un carril" value="Media" required />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="rep-lat">Latitud (Juárez) *</label>
+            <input type="number" step="any" id="rep-lat" value="31.7385" required />
+          </div>
+          <div class="form-group">
+            <label for="rep-lon">Longitud (Juárez) *</label>
+            <input type="number" step="any" id="rep-lon" value="-106.4850" required />
+          </div>
+        </div>
+
+        <div class="geo-row">
+          <button type="button" id="btn-usar-gps" class="btn btn-secondary btn-sm">📍 Usar mi ubicación GPS</button>
+          <span id="gps-estado" class="muted-text">Validado dentro del municipio de Juárez (RN-01)</span>
+        </div>
+
+        <div class="form-group">
+          <label for="rep-descripcion">Descripción detallada *</label>
+          <textarea id="rep-descripcion" rows="3" maxlength="500" placeholder="Describe el tamaño, riesgo vial o referencia cercana (máx. 500 caracteres)..." required></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="btn-cancelar-modal" class="btn btn-secondary">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Reporte</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Notificación Toast -->
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
