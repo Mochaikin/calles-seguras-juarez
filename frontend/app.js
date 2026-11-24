@@ -5,60 +5,60 @@ const API_BASE =
 
 let coloniasMap = {};
 
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
+  iniciarApp();
+});
+
+if (document.readyState === "interactive" || document.readyState === "complete") {
+  iniciarApp();
+}
+
+let appIniciada = false;
+async function iniciarApp() {
+  if (appIniciada) return;
+  appIniciada = true;
+
   inicializarModal();
   inicializarFiltros();
   await verificarConexion();
   await cargarColonias();
   await cargarReportes();
-  await verificarConexion();
-});
+}
 
-function buscarInsigniasApi() {
-  const encontrados = new Set();
-
-  const idsConocidos = ["apiStatus", "estadoApi", "api-status", "badgeApi", "statusApi"];
-  idsConocidos.forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) encontrados.add(el);
-  });
-
-  Array.from(document.querySelectorAll("span, div, button, p, a, strong")).forEach((el) => {
-    if (el.children.length === 0) {
-      const txt = el.textContent.trim();
-      if (
-        txt.includes("Conectando API") ||
-        txt.includes("Conectando...") ||
-        txt.includes("API Conectada") ||
-        txt.includes("API Desconectada")
-      ) {
-        encontrados.add(el);
-      }
-    }
-  });
-
-  return Array.from(encontrados);
+function obtenerElementoApi() {
+  return (
+    document.getElementById("apiStatus") ||
+    document.getElementById("estado-api") ||
+    document.getElementById("estadoApi") ||
+    document.getElementById("api-status") ||
+    Array.from(document.querySelectorAll("span, div, button, p")).find(
+      (el) =>
+        el.children.length === 0 &&
+        /conectando|api conectada|api desconectada/i.test(el.textContent.trim())
+    )
+  );
 }
 
 async function verificarConexion() {
-  const badges = buscarInsigniasApi();
-
+  const statusEl = obtenerElementoApi();
   try {
     const res = await fetch(`${API_BASE}/health`);
     if (!res.ok) throw new Error("API no disponible");
-    badges.forEach((el) => {
-      el.textContent = "API Conectada";
-      el.style.backgroundColor = "#dcfce7";
-      el.style.color = "#166534";
-      el.style.borderColor = "#86efac";
-    });
+    if (statusEl) {
+      statusEl.textContent = "API Conectada";
+      statusEl.classList.remove("status-offline", "status-loading", "conectando");
+      statusEl.classList.add("status-online", "conectada");
+      statusEl.style.backgroundColor = "#dcfce7";
+      statusEl.style.color = "#166534";
+    }
   } catch (err) {
-    badges.forEach((el) => {
-      el.textContent = "API Desconectada";
-      el.style.backgroundColor = "#fee2e2";
-      el.style.color = "#991b1b";
-      el.style.borderColor = "#fca5a5";
-    });
+    if (statusEl) {
+      statusEl.textContent = "API Desconectada";
+      statusEl.classList.remove("status-online", "status-loading", "conectada");
+      statusEl.classList.add("status-offline");
+      statusEl.style.backgroundColor = "#fee2e2";
+      statusEl.style.color = "#991b1b";
+    }
   }
 }
 
@@ -69,8 +69,10 @@ async function cargarColonias() {
     const colonias = await res.json();
 
     coloniasMap = {};
-    const filtroColonia = document.getElementById("filtroColonia");
-    const modalColonia = document.getElementById("colonia_id");
+    const filtroColonia =
+      document.getElementById("filtroColonia") || document.getElementById("filtro-colonia");
+    const modalColonia =
+      document.getElementById("colonia_id") || document.getElementById("coloniaId");
 
     colonias.forEach((c) => {
       coloniasMap[c.id] = c.nombre;
@@ -88,7 +90,8 @@ async function cargarColonias() {
       }
     });
 
-    const statColonias = document.getElementById("statColonias");
+    const statColonias =
+      document.getElementById("statColonias") || document.getElementById("totalColonias");
     if (statColonias) statColonias.textContent = colonias.length;
   } catch (err) {
     console.error("Error al cargar colonias:", err);
@@ -96,13 +99,21 @@ async function cargarColonias() {
 }
 
 async function cargarReportes() {
-  const listaEl = document.getElementById("listaReportes");
+  const listaEl =
+    document.getElementById("listaReportes") ||
+    document.getElementById("reportesLista") ||
+    document.getElementById("contenedorReportes");
   const countLabel = document.getElementById("resultadosCount");
 
-  const buscar = document.getElementById("filtroBuscar")?.value.trim() || "";
-  const coloniaId = document.getElementById("filtroColonia")?.value || "";
-  const tipo = document.getElementById("filtroTipo")?.value || "";
-  const estado = document.getElementById("filtroEstado")?.value || "";
+  const buscar =
+    (document.getElementById("filtroBuscar") || document.getElementById("filtro-buscar"))?.value.trim() ||
+    "";
+  const coloniaId =
+    (document.getElementById("filtroColonia") || document.getElementById("filtro-colonia"))?.value || "";
+  const tipo =
+    (document.getElementById("filtroTipo") || document.getElementById("filtro-tipo"))?.value || "";
+  const estado =
+    (document.getElementById("filtroEstado") || document.getElementById("filtro-estado"))?.value || "";
 
   const params = new URLSearchParams();
   if (buscar) params.append("buscar", buscar);
@@ -117,9 +128,8 @@ async function cargarReportes() {
     if (!res.ok) throw new Error("Error al consultar reportes");
 
     const reportes = await res.json();
-    await verificarConexion();
     actualizarEstadisticas(reportes);
-    renderizarReportes(reportes);
+    renderizarReportes(reportes, listaEl);
     if (countLabel) {
       countLabel.textContent = `Mostrando ${reportes.length} reporte(s)`;
     }
@@ -138,9 +148,13 @@ function actualizarEstadisticas(reportes) {
   const encharcamientos = reportes.filter((r) => r.tipo === "encharcamiento").length;
   const pavimento = total - encharcamientos;
 
-  const statTotal = document.getElementById("statTotal");
-  const statPavimento = document.getElementById("statPavimento");
-  const statEncharcamientos = document.getElementById("statEncharcamientos");
+  const statTotal =
+    document.getElementById("statTotal") || document.getElementById("totalReportes");
+  const statPavimento =
+    document.getElementById("statPavimento") || document.getElementById("totalPavimento");
+  const statEncharcamientos =
+    document.getElementById("statEncharcamientos") ||
+    document.getElementById("totalEncharcamientos");
 
   if (statTotal) statTotal.textContent = total;
   if (statPavimento) statPavimento.textContent = pavimento;
@@ -154,8 +168,12 @@ function formatearEtiqueta(valor) {
     .replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
-function renderizarReportes(reportes) {
-  let listaEl = document.getElementById("listaReportes");
+function renderizarReportes(reportes, listaElParam) {
+  let listaEl =
+    listaElParam ||
+    document.getElementById("listaReportes") ||
+    document.getElementById("reportesLista") ||
+    document.getElementById("contenedorReportes");
 
   if (!listaEl) {
     const cargandoEl = Array.from(document.querySelectorAll("*")).find(
@@ -166,10 +184,7 @@ function renderizarReportes(reportes) {
     }
   }
 
-  if (!listaEl) {
-    console.warn("No se encontró contenedor para renderizar reportes");
-    return;
-  }
+  if (!listaEl) return;
 
   if (!reportes || reportes.length === 0) {
     listaEl.innerHTML =
@@ -295,10 +310,13 @@ function inicializarFiltros() {
 
   if (btnLimpiar) {
     btnLimpiar.addEventListener("click", () => {
-      const buscar = document.getElementById("filtroBuscar");
-      const colonia = document.getElementById("filtroColonia");
-      const tipo = document.getElementById("filtroTipo");
-      const estado = document.getElementById("filtroEstado");
+      const buscar =
+        document.getElementById("filtroBuscar") || document.getElementById("filtro-buscar");
+      const colonia =
+        document.getElementById("filtroColonia") || document.getElementById("filtro-colonia");
+      const tipo = document.getElementById("filtroTipo") || document.getElementById("filtro-tipo");
+      const estado =
+        document.getElementById("filtroEstado") || document.getElementById("filtro-estado");
 
       if (buscar) buscar.value = "";
       if (colonia) colonia.value = "";
@@ -330,7 +348,9 @@ function inicializarModal() {
   if (form) {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const coloniaVal = document.getElementById("colonia_id")?.value;
+      const coloniaVal = (
+        document.getElementById("colonia_id") || document.getElementById("coloniaId")
+      )?.value;
       const payload = {
         tipo: document.getElementById("tipo").value,
         calle: document.getElementById("calle").value.trim(),
