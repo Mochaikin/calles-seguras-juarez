@@ -21,14 +21,29 @@
       </div>
       <div class="navbar-actions">
         <span id="api-status" class="status-pill status-loading">Conectando API...</span>
+        <button id="btn-exportar-csv" class="btn btn-secondary" title="Descargar reporte filtrado">Exportar CSV</button>
         <button id="btn-abrir-modal" class="btn btn-primary">+ Nuevo Reporte</button>
       </div>
     </div>
   </header>
 
+  <!-- Banner de Aviso de Lluvia (HU-08.1 - API Externa Open-Meteo Juárez) -->
+  <section id="banner-lluvia" class="rain-banner hidden" aria-live="polite">
+    <div class="container rain-banner-content">
+      <div class="rain-info">
+        <span class="rain-icon" aria-hidden="true">🌧️</span>
+        <div>
+          <strong id="rain-titulo">Pronóstico meteorológico en Ciudad Juárez</strong>
+          <p id="rain-detalle">Consultando probabilidad de precipitación en las próximas 12 horas...</p>
+        </div>
+      </div>
+      <button id="btn-filtrar-encharcamientos" class="btn btn-warning-sm">Ver encharcamientos activos</button>
+    </div>
+  </section>
+
   <main class="container main-content">
     <!-- Tarjetas de Resumen -->
-    <section class="stats-grid">
+    <section class="stats-grid" aria-label="Indicadores generales">
       <article class="stat-card">
         <span class="stat-label">Reportes Visibles</span>
         <strong id="stat-total" class="stat-value">0</strong>
@@ -52,7 +67,7 @@
     </section>
 
     <!-- Barra de Filtros -->
-    <section class="filters-card">
+    <section class="filters-card" aria-label="Filtros de búsqueda">
       <div class="filters-grid">
         <div class="form-group">
           <label for="filtro-buscar">Buscar por folio o calle</label>
@@ -96,7 +111,7 @@
     </section>
 
     <!-- Listado de Reportes -->
-    <section class="reports-section">
+    <section class="reports-section" aria-label="Listado de reportes">
       <div class="section-header">
         <h2>Reportes Ciudadanos Recientes</h2>
         <span id="resultados-texto" class="muted-text">Cargando registros...</span>
@@ -105,11 +120,18 @@
     </section>
   </main>
 
+  <footer class="footer">
+    <div class="container footer-content">
+      <p>Calles Seguras Juárez — Plataforma ciudadana de monitoreo vial en Ciudad Juárez, Chih.</p>
+      <p class="footer-note">Aviso de Privacidad: Ningún reporte público expone datos personales del ciudadano reportante (RN-04).</p>
+    </div>
+  </footer>
+
   <!-- Modal para Crear Nuevo Reporte -->
-  <div id="modal-reporte" class="modal-backdrop hidden">
+  <div id="modal-reporte" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>Registrar Nuevo Reporte</h3>
+        <h3 id="modal-titulo">Registrar Nuevo Reporte</h3>
         <button id="btn-cerrar-modal" class="btn-icon" aria-label="Cerrar">&times;</button>
       </div>
       <form id="form-nuevo-reporte" class="modal-form">
@@ -138,7 +160,7 @@
             <input type="text" id="rep-calle" placeholder="Ej. Av. Ejército Nacional #4520" required />
           </div>
           <div class="form-group">
-            <label for="rep-severidad">Severidad o nivel *</label>
+            <label for="rep-severidad" id="label-severidad">Severidad o nivel *</label>
             <input type="text" id="rep-severidad" placeholder="Ej. Alta / Cubre un carril" value="Media" required />
           </div>
         </div>
@@ -154,9 +176,14 @@
           </div>
         </div>
 
+        <div class="geo-row">
+          <button type="button" id="btn-usar-gps" class="btn btn-secondary btn-sm">📍 Usar mi ubicación GPS</button>
+          <span id="gps-estado" class="muted-text">Validado dentro del municipio de Juárez (RN-01)</span>
+        </div>
+
         <div class="form-group">
           <label for="rep-descripcion">Descripción detallada *</label>
-          <textarea id="rep-descripcion" rows="3" placeholder="Describe el tamaño, riesgo vial o referencia cercana..." required></textarea>
+          <textarea id="rep-descripcion" rows="3" maxlength="500" placeholder="Describe el tamaño, riesgo vial o referencia cercana (máx. 500 caracteres)..." required></textarea>
         </div>
 
         <div class="modal-actions">
@@ -168,7 +195,7 @@
   </div>
 
   <!-- Notificación Toast -->
-  <div id="toast" class="toast hidden"></div>
+  <div id="toast" class="toast hidden" role="status"></div>
 
   <script src="app.js"></script>
 </body>

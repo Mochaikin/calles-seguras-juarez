@@ -11,7 +11,7 @@
   --info: #0284c7;
   --danger: #dc2626;
   --radius: 12px;
-  --shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  --shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
 }
 
 * {
@@ -21,8 +21,16 @@
 }
 
 body {
+  min-height: 100vh;
   font-family: "Inter", system-ui, -apple-system, sans-serif;
-  background-color: var(--bg);
+  background-color: #0b1026;
+  background-image:
+    linear-gradient(rgba(10, 15, 35, 0.68), rgba(10, 15, 35, 0.72)),
+    url("galaxia.png");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   color: var(--text);
   line-height: 1.5;
 }
@@ -82,6 +90,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .status-pill {
@@ -104,6 +113,58 @@ body {
 .status-offline {
   background: #fee2e2;
   color: #991b1b;
+}
+
+/* Banner de lluvia */
+.rain-banner {
+  background-color: #eff6ff;
+  border-bottom: 1px solid #bfdbfe;
+  padding: 12px 0;
+  color: #1e3a8a;
+}
+
+.rain-banner.rain-alert {
+  background-color: #fef3c7;
+  border-bottom-color: #fcd34d;
+  color: #92400e;
+}
+
+.rain-banner-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rain-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rain-icon {
+  font-size: 1.5rem;
+}
+
+.rain-info p {
+  margin: 2px 0 0;
+  font-size: 0.9rem;
+}
+
+.btn-warning-sm {
+  background-color: #1d4ed8;
+  color: #ffffff;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-warning-sm:hover {
+  background-color: #1e40af;
 }
 
 /* Main */
@@ -247,6 +308,11 @@ input:focus, select:focus, textarea:focus {
   background: rgba(29, 78, 216, 0.08);
 }
 
+.btn-sm {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
+
 /* Reports Grid */
 .section-header {
   display: flex;
@@ -259,11 +325,12 @@ input:focus, select:focus, textarea:focus {
 
 .section-header h2 {
   font-size: 1.15rem;
+  color: #ffffff;
 }
 
 .muted-text {
   font-size: 0.85rem;
-  color: var(--muted);
+  color: #cbd5e1;
 }
 
 .reports-grid {
@@ -348,6 +415,62 @@ input:focus, select:focus, textarea:focus {
   gap: 0.5rem;
 }
 
+.map-link {
+  color: #1d4ed8;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.map-link:hover {
+  text-decoration: underline;
+}
+
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.estado-select {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background-color: #f8fafc;
+  color: #1e293b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.estado-select:hover {
+  border-color: #2563eb;
+}
+
+.btn-confirm {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #2563eb;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-confirm:hover:not(:disabled) {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+.btn-confirm:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
 /* Modal */
 .modal-backdrop {
   position: fixed;
@@ -406,6 +529,14 @@ input:focus, select:focus, textarea:focus {
   }
 }
 
+.geo-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -428,48 +559,18 @@ input:focus, select:focus, textarea:focus {
   z-index: 60;
 }
 
-.card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.estado-select {
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  background-color: #f8fafc;
-  color: #1e293b;
+/* Footer */
+.footer {
+  margin-top: 40px;
+  padding: 20px 0;
+  border-top: 1px solid var(--border);
+  background-color: var(--surface);
+  color: #475569;
   font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
 }
 
-.estado-select:hover {
-  border-color: #2563eb;
-}
-
-.card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.estado-select {
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  background-color: #f8fafc;
-  color: #1e293b;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.estado-select:hover {
-  border-color: #2563eb;
+.footer-note {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: #64748b;
 }

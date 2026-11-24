@@ -4,11 +4,14 @@ const API_BASE =
     : "https://calles-seguras-juarez-api-8e6q.onrender.com";
 
 let coloniasMap = {};
+let reportesActuales = [];
 
 document.addEventListener("DOMContentLoaded", async () => {
   inicializarModal();
   inicializarFiltros();
+  inicializarExportacion();
   await verificarConexion();
+  await cargarPronosticoLluvia();
   await cargarColonias();
   await cargarReportes();
 });
@@ -21,7 +24,7 @@ function mostrarToast(mensaje) {
   clearTimeout(window.__toastTimer);
   window.__toastTimer = setTimeout(() => {
     toastEl.classList.add("hidden");
-  }, 3000);
+  }, 3200);
 }
 
 async function verificarConexion() {
@@ -42,6 +45,53 @@ async function verificarConexion() {
     statusEl.classList.add("status-offline", "status-error");
     statusEl.style.setProperty("background-color", "#dc2626", "important");
     statusEl.style.setProperty("color", "#ffffff", "important");
+  }
+}
+
+async function cargarPronosticoLluvia() {
+  const banner = document.getElementById("banner-lluvia");
+  const titulo = document.getElementById("rain-titulo");
+  const detalle = document.getElementById("rain-detalle");
+  const btnVerEncharcamientos = document.getElementById("btn-filtrar-encharcamientos");
+
+  if (!banner || !titulo || !detalle) return;
+
+  if (btnVerEncharcamientos) {
+    btnVerEncharcamientos.addEventListener("click", () => {
+      const filtroTipo = document.getElementById("filtro-tipo");
+      const filtroEstado = document.getElementById("filtro-estado");
+      if (filtroTipo) filtroTipo.value = "encharcamiento";
+      if (filtroEstado) filtroEstado.value = "activo";
+      cargarReportes();
+    });
+  }
+
+  try {
+    const url =
+      "https://api.open-meteo.com/v1/forecast?latitude=31.7385&longitude=-106.4850&hourly=precipitation_probability&forecast_hours=12&timezone=America%2FCiudad_Juarez";
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Clima no disponible");
+
+    const data = await res.json();
+    const probs = data?.hourly?.precipitation_probability || [];
+    const maxProb = probs.length ? Math.max(...probs) : 0;
+
+    banner.classList.remove("hidden");
+    if (maxProb >= 30) {
+      banner.classList.add("rain-alert");
+      titulo.textContent = `Aviso de lluvia en Ciudad Juárez (${maxProb}% de probabilidad en 12 h)`;
+      detalle.textContent =
+        "Revisa los encharcamientos activos antes de salir y evita pasos a desnivel inundables.";
+    } else {
+      banner.classList.remove("rain-alert");
+      titulo.textContent = `Clima estable en Ciudad Juárez (${maxProb}% prob. de lluvia en 12 h)`;
+      detalle.textContent =
+        "Monitoreo meteorológico activo vía Open-Meteo. Consulta encharcamientos históricos o reportes viales.";
+    }
+  } catch (err) {
+    banner.classList.remove("hidden");
+    titulo.textContent = "Pronóstico no disponible";
+    detalle.textContent = "La plataforma sigue operando con normalidad.";
   }
 }
 
@@ -109,6 +159,7 @@ async function cargarReportes() {
     if (!res.ok) throw new Error("Error al consultar reportes");
 
     const reportes = await res.json();
+    reportesActuales = reportes;
     actualizarEstadisticas(reportes);
     renderizarReportes(reportes);
     if (countLabel) {
@@ -183,6 +234,8 @@ function renderizarReportes(reportes) {
         )
         .join("");
 
+      const mapaUrl = `https://www.openstreetmap.org/?mlat=${r.latitud}&mlon=${r.longitud}#map=16/${r.latitud}/${r.longitud}`;
+
       return `
         <article class="report-card">
           <div class="card-top">
@@ -196,6 +249,7 @@ function renderizarReportes(reportes) {
             <span><strong>Colonia:</strong> ${nombreColonia}</span>
             <span><strong>Severidad / Nivel:</strong> ${r.severidad_o_nivel || "No especificada"}</span>
             <span><strong>Registrado:</strong> ${fecha}</span>
+            <span><a href="${mapaUrl}" target="_blank" rel="noopener noreferrer" class="map-link">📍 Ver ubicación (${Number(r.latitud).toFixed(4)}, ${Number(r.longitud).toFixed(4)})</a></span>
           </div>
 
           <p class="card-desc">${r.descripcion || "Sin descripción adicional."}</p>
@@ -289,12 +343,92 @@ function inicializarFiltros() {
   }
 }
 
+function inicializarExportacion() {
+  const btnCsv = document.getElementById("btn-exportar-csv");
+  if (!btnCsv) return;
+
+  btnCsv.addEventListener("click", () => {
+    if (!reportesActuales.length) {
+      mostrarToast("No hay reportes visibles para exportar");
+      return;
+    }
+    const encabezados = ["Folio", "Tipo", "Calle", "Colonia", "Severidad_Nivel", "Estado", "Latitud", "Longitud", "Fecha"];
+    const filas = reportesActuales.map((r) => [
+      r.folio,
+      r.tipo,
+      `"${(r.calle || "").replace(/"/g, '""')}"`,
+      `"${(coloniasMap[r.colonia_id] || "Sin colonia").replace(/"/g, '""')}"`,
+      `"${(r.severidad_o_nivel || "").replace(/"/g, '""')}"`,
+      r.estado,
+      r.latitud,
+      r.longitud,
+      r.created_at || "",
+    ]);
+
+    const contenido = [encabezados.join(","), ...filas.map((f) => f.join(","))].join("\n");
+    const blob = new Blob(["\uFEFF" + contenido], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "reportes_calles_seguras_juarez.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+    mostrarToast("CSV exportado sin datos personales (RN-04)");
+  });
+}
+
 function inicializarModal() {
   const modal = document.getElementById("modal-reporte");
   const btnAbrir = document.getElementById("btn-abrir-modal");
   const btnCerrar = document.getElementById("btn-cerrar-modal");
   const btnCancelar = document.getElementById("btn-cancelar-modal");
   const form = document.getElementById("form-nuevo-reporte");
+  const tipoSelect = document.getElementById("rep-tipo");
+  const severidadInput = document.getElementById("rep-severidad");
+  const labelSeveridad = document.getElementById("label-severidad");
+  const btnGps = document.getElementById("btn-usar-gps");
+  const gpsEstado = document.getElementById("gps-estado");
+
+  if (tipoSelect && severidadInput && labelSeveridad) {
+    tipoSelect.addEventListener("change", () => {
+      const val = tipoSelect.value;
+      if (val === "alcantarilla_sin_tapa") {
+        labelSeveridad.textContent = "Severidad (asignada automáticamente) *";
+        severidadInput.value = "Alta";
+        severidadInput.readOnly = true;
+      } else if (val === "encharcamiento") {
+        labelSeveridad.textContent = "Nivel de agua *";
+        severidadInput.readOnly = false;
+        severidadInput.value = "cubre un carril";
+        severidadInput.placeholder = "a un lado de la calle, cubre un carril, a media llanta, intransitable";
+      } else {
+        labelSeveridad.textContent = "Severidad *";
+        severidadInput.readOnly = false;
+        severidadInput.value = "Media";
+        severidadInput.placeholder = "Baja, Media o Alta";
+      }
+    });
+  }
+
+  if (btnGps) {
+    btnGps.addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        if (gpsEstado) gpsEstado.textContent = "Tu navegador no soporta geolocalización.";
+        return;
+      }
+      if (gpsEstado) gpsEstado.textContent = "Obteniendo coordenadas...";
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          document.getElementById("rep-lat").value = pos.coords.latitude.toFixed(6);
+          document.getElementById("rep-lon").value = pos.coords.longitude.toFixed(6);
+          if (gpsEstado) gpsEstado.textContent = "Ubicación GPS cargada correctamente.";
+        },
+        () => {
+          if (gpsEstado) gpsEstado.textContent = "No se pudo obtener GPS; usa coordenadas de Juárez.";
+        }
+      );
+    });
+  }
 
   if (btnAbrir && modal) {
     btnAbrir.addEventListener("click", () => modal.classList.remove("hidden"));
@@ -310,14 +444,22 @@ function inicializarModal() {
   if (form) {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+      const lat = Number(document.getElementById("rep-lat").value);
+      const lon = Number(document.getElementById("rep-lon").value);
+
+      if (lat < 31.3 || lat > 31.9 || lon < -106.9 || lon > -106.1) {
+        alert("Las coordenadas deben ubicarse dentro del municipio de Ciudad Juárez, Chihuahua (RN-01).");
+        return;
+      }
+
       const coloniaVal = document.getElementById("rep-colonia")?.value;
       const payload = {
         tipo: document.getElementById("rep-tipo").value,
         calle: document.getElementById("rep-calle").value.trim(),
         colonia_id: coloniaVal ? Number(coloniaVal) : null,
         severidad_o_nivel: document.getElementById("rep-severidad").value,
-        latitud: Number(document.getElementById("rep-lat").value),
-        longitud: Number(document.getElementById("rep-lon").value),
+        latitud: lat,
+        longitud: lon,
         descripcion: document.getElementById("rep-descripcion").value.trim() || null,
       };
 
@@ -334,6 +476,7 @@ function inicializarModal() {
         }
 
         form.reset();
+        severidadInput.readOnly = false;
         cerrar();
         mostrarToast("Reporte registrado correctamente");
         await cargarReportes();
